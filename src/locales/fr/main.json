@@ -710,6 +710,7 @@
     "Open DevTools": "Ouvrir DevTools",
     "Open Inputs Folder": "Ouvrir le dossier des entrées",
     "Open Logs Folder": "Ouvrir le dossier des journaux",
+    "Open Mask Editor for Selected Node": "Ouvrir l’éditeur de mask pour le nœud sélectionné",
     "Open Models Folder": "Ouvrir le dossier des modèles",
     "Open Outputs Folder": "Ouvrir le dossier des sorties",
     "Open Sign In Dialog": "Ouvrir la boîte de dialogue de connexion",
@@ -1106,7 +1107,6 @@
     "category": {
       "3D": "3D",
       "All": "Tous les modèles",
-      "AllTemplates": "Tous les modèles",
       "Area Composition": "Composition de zone",
       "Audio": "Audio",
       "Basics": "Basiques",

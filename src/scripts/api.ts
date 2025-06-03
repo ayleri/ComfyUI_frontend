@@ -13,7 +13,7 @@ import type {
   ExtensionsResponse,
   HistoryTaskItem,
   LogsRawResponse,
-  LogsWsMessage,
+  LogsWsMessage,  
   PendingTaskItem,
   ProgressTextWsMessage,
   ProgressWsMessage,
@@ -24,7 +24,8 @@ import type {
   StatusWsMessageStatus,
   SystemStats,
   User,
-  UserDataFullInfo
+  UserDataFullInfo,
+  UserDataV2Entry
 } from '@/schemas/apiSchema'
 import type {
   ComfyApiWorkflow,
@@ -955,6 +956,16 @@ export class ComfyApi extends EventTarget {
    */
   async getCustomNodesI18n(): Promise<Record<string, any>> {
     return (await axios.get(this.apiURL('/i18n'))).data
+  }
+
+  async listUserDataV2(path: string = ''): Promise<UserDataV2Entry[]> {
+    const res = await this.fetchApi(`/v2/userdata?path=${encodeURIComponent(path)}`)
+    if (res.status !== 200) {
+      throw new Error(
+        `Error listing v2 userdata for '${path}': ${res.status} ${res.statusText}`
+      )
+    }
+    return (await res.json()) as UserDataV2Entry[]
   }
 }
 

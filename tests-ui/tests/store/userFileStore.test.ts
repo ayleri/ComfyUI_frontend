@@ -7,6 +7,7 @@ import { UserFile, useUserFileStore } from '@/stores/userFileStore'
 // Mock the api
 vi.mock('@/scripts/api', () => ({
   api: {
+    listUserDataV2: vi.fn(),
     listUserDataFullInfo: vi.fn(),
     getUserData: vi.fn(),
     storeUserData: vi.fn(),
@@ -31,59 +32,60 @@ describe('useUserFileStore', () => {
   })
 
   describe('syncFiles', () => {
-    it('should add new files', async () => {
-      const mockFiles = [
-        { path: 'file1.txt', modified: 123, size: 100 },
-        { path: 'file2.txt', modified: 456, size: 200 }
+    it('should add new files and track directories', async () => {
+      const entries = [
+        { name: 'file1.txt', path: 'dir/file1.txt', type: 'file', size: 100, modified: 123 },
+        { name: 'subdir', path: 'dir/subdir', type: 'directory' }
       ]
-      vi.mocked(api.listUserDataFullInfo).mockResolvedValue(mockFiles)
+      vi.mocked(api.listUserDataV2).mockResolvedValue(entries)
 
       await store.syncFiles('dir')
 
-      expect(store.userFiles).toHaveLength(2)
+      expect(store.userFiles).toHaveLength(1)
       expect(store.userFiles[0].path).toBe('dir/file1.txt')
-      expect(store.userFiles[1].path).toBe('dir/file2.txt')
+      // directory entry should be tracked internally (via fileTree)
+      const tree = store.fileTree
+      expect(tree.children?.some((n) => n.key.endsWith('/subdir') && !n.leaf)).toBe(true)
     })
 
     it('should update existing files', async () => {
-      const initialFile = { path: 'file1.txt', modified: 123, size: 100 }
-      vi.mocked(api.listUserDataFullInfo).mockResolvedValue([initialFile])
-      await store.syncFiles('dir')
+      const initial = [{ name: 'f.txt', path: 'd/f.txt', type: 'file', size: 10, modified: 1 }]
+      vi.mocked(api.listUserDataV2).mockResolvedValue(initial)
+      await store.syncFiles('d')
 
-      const updatedFile = { path: 'file1.txt', modified: 456, size: 200 }
-      vi.mocked(api.listUserDataFullInfo).mockResolvedValue([updatedFile])
-      await store.syncFiles('dir')
+      const updated = [{ name: 'f.txt', path: 'd/f.txt', type: 'file', size: 20, modified: 2 }]
+      vi.mocked(api.listUserDataV2).mockResolvedValue(updated)
+      await store.syncFiles('d')
 
-      expect(store.userFiles).toHaveLength(1)
-      expect(store.userFiles[0].lastModified).toBe(456)
-      expect(store.userFiles[0].size).toBe(200)
+      expect(store.userFiles[0].lastModified).toBe(2)
+      expect(store.userFiles[0].size).toBe(20)
     })
 
     it('should remove non-existent files', async () => {
-      const initialFiles = [
-        { path: 'file1.txt', modified: 123, size: 100 },
-        { path: 'file2.txt', modified: 456, size: 200 }
+      const initial = [
+        { name: 'a', path: 'd/a', type: 'file', size: 1, modified: 1 },
+        { name: 'b', path: 'd/b', type: 'file', size: 1, modified: 1 }
       ]
-      vi.mocked(api.listUserDataFullInfo).mockResolvedValue(initialFiles)
-      await store.syncFiles('dir')
+      vi.mocked(api.listUserDataV2).mockResolvedValue(initial)
+      await store.syncFiles('d')
 
-      const updatedFiles = [{ path: 'file1.txt', modified: 123, size: 100 }]
-      vi.mocked(api.listUserDataFullInfo).mockResolvedValue(updatedFiles)
-      await store.syncFiles('dir')
+      const updated = [{ name: 'a', path: 'd/a', type: 'file', size: 1, modified: 1 }]
+      vi.mocked(api.listUserDataV2).mockResolvedValue(updated)
+      await store.syncFiles('d')
 
       expect(store.userFiles).toHaveLength(1)
-      expect(store.userFiles[0].path).toBe('dir/file1.txt')
+      expect(store.userFiles[0].path).toBe('d/a')
     })
 
-    it('should sync root directory when no directory is specified', async () => {
-      const mockFiles = [{ path: 'file1.txt', modified: 123, size: 100 }]
-      vi.mocked(api.listUserDataFullInfo).mockResolvedValue(mockFiles)
+    it('should list root when no dir specified', async () => {
+      const entries = [{ name: 'root.txt', path: 'root.txt', type: 'file', size: 5, modified: 5 }]
+      vi.mocked(api.listUserDataV2).mockResolvedValue(entries)
 
       await store.syncFiles()
 
-      expect(api.listUserDataFullInfo).toHaveBeenCalledWith('')
+      expect(api.listUserDataV2).toHaveBeenCalledWith('')
       expect(store.userFiles).toHaveLength(1)
-      expect(store.userFiles[0].path).toBe('file1.txt')
+      expect(store.userFiles[0].path).toBe('root.txt')
     })
   })
 

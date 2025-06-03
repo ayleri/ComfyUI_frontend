@@ -5,7 +5,7 @@ import { UserDataFullInfo } from '@/schemas/apiSchema'
 import { api } from '@/scripts/api'
 import { TreeExplorerNode } from '@/types/treeExplorerTypes'
 import { getPathDetails } from '@/utils/formatUtil'
-import { syncEntities } from '@/utils/syncUtil'
+import { syncEntities, syncEntitiesV2 } from '@/utils/syncUtil'
 import { buildTree } from '@/utils/treeUtil'
 
 /**
@@ -190,6 +190,8 @@ export interface LoadedUserFile extends UserFile {
 
 export const useUserFileStore = defineStore('userFile', () => {
   const userFilesByPath = ref<Record<string, UserFile>>({})
+  // Track empty directories for user data
+  const userDirs = ref<Set<string>>(new Set())
 
   const userFiles = computed(() => Object.values(userFilesByPath.value))
   const modifiedFiles = computed(() =>
@@ -199,27 +201,41 @@ export const useUserFileStore = defineStore('userFile', () => {
     userFiles.value.filter((file: UserFile) => file.isLoaded)
   )
 
-  const fileTree = computed<TreeExplorerNode<UserFile>>(
-    () =>
-      buildTree<UserFile>(userFiles.value, (userFile: UserFile) =>
-        userFile.path.split('/')
-      ) as TreeExplorerNode<UserFile>
-  )
+  const fileTree = computed<TreeExplorerNode<UserFile>>(() => {
+    const entries: { path: string; isDir: boolean; file?: UserFile }[] = []
+    // directory entries (empty-folder support)
+    for (const dirPath of userDirs.value) {
+      entries.push({ path: dirPath, isDir: true })
+    }
+    // file entries
+    for (const file of userFiles.value) {
+      entries.push({ path: file.path, isDir: false, file })
+    }
+    return (
+      buildTree(entries as any, (item: any) => {
+        const segs = item.path.split('/')
+        return item.isDir ? [...segs, ''] : segs
+      }) as TreeExplorerNode<UserFile>
+    )
+  })
 
   /**
    * Syncs the files in the given directory with the API.
    * @param dir The directory to sync.
    */
   const syncFiles = async (dir: string = '') => {
-    await syncEntities(
+    // List files and directories via v2 endpoint
+    await syncEntitiesV2(
       dir,
       userFilesByPath.value,
-      (file) => new UserFile(file.path, file.modified, file.size),
-      (existingFile, file) => {
-        existingFile.lastModified = file.modified
-        existingFile.size = file.size
+      (entry) => new UserFile(entry.path, entry.modified ?? 0, entry.size ?? 0),
+      (existingFile, entry) => {
+        existingFile.lastModified = entry.modified ?? existingFile.lastModified
+        existingFile.size = entry.size ?? existingFile.size
         existingFile.unload()
-      }
+      },
+      () => false,
+      userDirs.value
     )
   }
 

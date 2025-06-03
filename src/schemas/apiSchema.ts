@@ -333,6 +333,15 @@ const zUserDataFullInfo = z.object({
   size: z.number(),
   modified: z.number()
 })
+
+const zUserDataV2Entry = z.object({
+  name: z.string(),
+  path: z.string(),
+  type: z.enum(['file', 'directory']),
+  size: z.number().optional(),
+  modified: z.number().optional()
+})
+
 const zBookmarkCustomization = z.object({
   icon: z.string().optional(),
   color: z.string().optional()
@@ -487,6 +496,7 @@ export type SystemStats = z.infer<typeof zSystemStats>
 export type User = z.infer<typeof zUser>
 export type UserData = z.infer<typeof zUserData>
 export type UserDataFullInfo = z.infer<typeof zUserDataFullInfo>
+export type UserDataV2Entry = z.infer<typeof zUserDataV2Entry>
 export type TerminalSize = z.infer<typeof zTerminalSize>
 export type LogEntry = z.infer<typeof zLogEntry>
 export type LogsRawResponse = z.infer<typeof zLogRawResponse>

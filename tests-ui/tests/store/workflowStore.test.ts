@@ -17,6 +17,8 @@ vi.mock('@/scripts/api', () => ({
   api: {
     getUserData: vi.fn(),
     storeUserData: vi.fn(),
+    // v2 listing for workflows and directories
+    listUserDataV2: vi.fn(),
     listUserDataFullInfo: vi.fn(),
     apiURL: vi.fn(),
     addEventListener: vi.fn()
@@ -35,11 +37,15 @@ describe('useWorkflowStore', () => {
   let bookmarkStore: ReturnType<typeof useWorkflowBookmarkStore>
 
   const syncRemoteWorkflows = async (filenames: string[]) => {
-    vi.mocked(api.listUserDataFullInfo).mockResolvedValue(
+    // Simulate v2 API entries for workflows under 'workflows' prefix
+    const now = new Date().getTime()
+    vi.mocked(api.listUserDataV2).mockResolvedValue(
       filenames.map((filename) => ({
-        path: filename,
-        modified: new Date().getTime(),
-        size: 1 // size !== -1 for remote workflows
+        name: filename,
+        path: `workflows/${filename}`,
+        type: 'file',
+        size: 1,
+        modified: now
       }))
     )
     return await store.syncWorkflows()

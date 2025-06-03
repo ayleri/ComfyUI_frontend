@@ -201,16 +201,36 @@ enum WorkflowTreeType {
   Browse = 'Browse'
 }
 
+/**
+ * Build a simple tree of workflows (files only) for search/bookmarks.
+ */
 const buildWorkflowTree = (workflows: ComfyWorkflow[]) => {
   return buildTree(workflows, (workflow: ComfyWorkflow) =>
     workflow.key.split('/')
   )
 }
 
-const workflowsTree = computed(() =>
-  sortedTree(buildWorkflowTree(workflowStore.persistedWorkflows), {
-    groupLeaf: true
+/**
+ * Build the browse tree including empty directories using v2 listing data.
+ */
+const buildBrowseTree = () => {
+  const items: { path: string; isDir: boolean; data?: ComfyWorkflow }[] = []
+  // include empty-folder nodes
+  for (const dirPath of workflowStore.workflowDirs) {
+    items.push({ path: dirPath, isDir: true })
+  }
+  // include workflow file nodes
+  for (const wf of workflowStore.persistedWorkflows) {
+    items.push({ path: wf.path, isDir: false, data: wf })
+  }
+  return buildTree(items as any, (item: any) => {
+    const segs = item.path.split('/')
+    return item.isDir ? [...segs, ''] : segs
   })
+}
+
+const workflowsTree = computed(() =>
+  sortedTree(buildBrowseTree(), { groupLeaf: true })
 )
 // Bookmarked workflows tree is flat.
 const bookmarkedWorkflowsTree = computed(() =>

@@ -8,7 +8,7 @@ import { app as comfyApp } from '@/scripts/app'
 import { ChangeTracker } from '@/scripts/changeTracker'
 import { defaultGraphJSON } from '@/scripts/defaultGraph'
 import { getPathDetails } from '@/utils/formatUtil'
-import { syncEntities } from '@/utils/syncUtil'
+import { syncEntities, syncEntitiesV2 } from '@/utils/syncUtil'
 import { isSubgraph } from '@/utils/typeGuardUtil'
 
 import { UserFile } from './userFileStore'
@@ -338,22 +338,26 @@ export const useWorkflowStore = defineStore('workflow', () => {
   const persistedWorkflows = computed(() =>
     Array.from(workflows.value).filter((workflow) => workflow.isPersisted)
   )
+  // Track empty directories under workflows for sidebar tree
+  const workflowDirs = ref<Set<string>>(new Set())
+  /**
+   * Sync workflows and empty folders via v2 endpoint.
+   * @param dir Optional subdirectory under 'workflows/' to sync.
+   */
   const syncWorkflows = async (dir: string = '') => {
-    await syncEntities(
-      dir ? 'workflows/' + dir : 'workflows',
+    const basePath = dir ? 'workflows/' + dir : 'workflows'
+    await syncEntitiesV2(
+      basePath,
       workflowLookup.value,
-      (file) =>
-        new ComfyWorkflow({
-          path: file.path,
-          modified: file.modified,
-          size: file.size
-        }),
-      (existingWorkflow, file) => {
-        existingWorkflow.lastModified = file.modified
-        existingWorkflow.size = file.size
+      (entry) =>
+        new ComfyWorkflow({ path: entry.path, modified: entry.modified ?? 0, size: entry.size ?? 0 }),
+      (existingWorkflow, entry) => {
+        existingWorkflow.lastModified = entry.modified ?? existingWorkflow.lastModified
+        existingWorkflow.size = entry.size ?? existingWorkflow.size
         existingWorkflow.unload()
       },
-      /* exclude */ (workflow) => workflow.isTemporary
+      (workflow) => workflow.isTemporary,
+      workflowDirs.value
     )
   }
 
@@ -472,6 +476,8 @@ export const useWorkflowStore = defineStore('workflow', () => {
     modifiedWorkflows,
     getWorkflowByPath,
     syncWorkflows,
+    // directory paths for empty-folder support in workflows tree
+    workflowDirs,
 
     subgraphNamePath,
     isSubgraphActive,
